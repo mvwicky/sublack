@@ -1,22 +1,23 @@
-import sublime_plugin
+import logging
 import sublime
+import sublime_plugin
+import subprocess
+
+from .blacker import Black
 from .consts import (
     BLACK_ON_SAVE_VIEW_SETTING,
-    STATUS_KEY,
-    BLACKD_STARTED,
-    BLACKD_STOPPED,
-    BLACKD_START_FAILED,
-    BLACKD_STOP_FAILED,
-    PACKAGE_NAME,
     BLACKD_ALREADY_RUNNING,
-    REFORMATTED_MESSAGE,
+    BLACKD_START_FAILED,
+    BLACKD_STARTED,
+    BLACKD_STOP_FAILED,
+    BLACKD_STOPPED,
+    PACKAGE_NAME,
     REFORMAT_ERRORS,
+    REFORMATTED_MESSAGE,
+    STATUS_KEY,
 )
-from .utils import get_settings, check_blackd_on_http, get_on_save_fast, timed, popen
-from .blacker import Black
-import logging
 from .server import BlackdServer
-import subprocess
+from .utils import check_blackd_on_http, get_on_save_fast, get_settings, popen
 
 LOG = logging.getLogger(PACKAGE_NAME)
 
@@ -203,11 +204,11 @@ class BlackFormatAllCommand(sublime_plugin.WindowCommand):
         for out in success:
             LOG.debug(
                 "black formatted folder %s with returncode %s and following en stderr :%s",
-                *out
+                *out,
             )
 
         for out in errors:
             LOG.error(
                 "black formatted folder %s with returncode %s and following en stderr :%s",
-                *out
+                *out,
             )

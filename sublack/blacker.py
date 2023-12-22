@@ -2,35 +2,32 @@
 """
 Sublime Text 3 Plugin to invoke Black on a Python file.
 """
-import os.path
+import logging
 import os
+import os.path
+import sublime
 import subprocess
 
-import sublime
-
 import requests
-import logging
 
 from .consts import (
-    HEADERS_TABLE,
     ALREADY_FORMATTED_MESSAGE,
     ALREADY_FORMATTED_MESSAGE_CACHE,
-    STATUS_KEY,
+    HEADERS_TABLE,
     PACKAGE_NAME,
     REFORMATTED_MESSAGE,
+    STATUS_KEY,
 )
+from .folding import get_ast_index, get_folded_lines, refold_all
 from .utils import (
-    get_settings,
-    get_encoding_from_file,
+    Path,
     cache_path,
     find_root_file,
-    use_pre_commit,
-    Path,
+    get_encoding_from_file,
     get_env,
+    get_settings,
+    use_pre_commit,
 )
-
-from .folding import get_folded_lines, get_ast_index, refold_all
-
 
 LOG = logging.getLogger(PACKAGE_NAME)
 
@@ -39,18 +36,16 @@ class Blackd:
     """warpper between black command line and blackd."""
 
     def __init__(self, cmd, content, encoding, config):
-
         self.headers = self.format_headers(cmd)
         self.content = content
         self.encoding = encoding
         self.config = config
 
     def format_headers(self, cmd):
-
         """Get command line args and turn it to properly formatted headers"""
         headers = {}
 
-        # all but line length an dtarget version
+        # all but line length and target version
         for item in cmd:
             if item in HEADERS_TABLE:
                 headers.update(HEADERS_TABLE[item])
@@ -63,7 +58,7 @@ class Blackd:
         for index, item in enumerate(cmd):
             if item == "--target-version":
                 version = cmd[index + 1]
-                variant = version[:-1] + "." + version[-1]
+                variant = version[2] + "." + version[3:]
                 targets.add(variant)
 
         if "--py36" in cmd:
@@ -98,7 +93,6 @@ class Blackd:
         return response
 
     def __call__(self):
-
         self.headers.update(
             {"Content-Type": "application/octet-stream; charset=" + self.encoding}
         )
@@ -111,8 +105,7 @@ class Blackd:
         )
         try:
             response = requests.post(url, data=self.content, headers=self.headers)
-        except requests.ConnectionError as err:
-
+        except requests.ConnectionError:
             msg = "blackd not running on port {}".format(
                 self.config["black_blackd_port"]
             )
@@ -155,7 +148,6 @@ class Black:
             raise Exception(msg)
 
         cmd = os.path.expanduser(cmd)
-
         cmd = sublime.expand_variables(cmd, self.variables)
 
         # set  black in input/ouput mode with -
@@ -188,9 +180,8 @@ class Black:
         if self.config.get("black_py36"):
             cmd.append("--py36")
 
-        # black target-vversion
+        # black target-version
         if self.config.get("black_target_version"):
-            versions = []
             for v in self.config["black_target_version"]:
                 cmd.extend(["--target-version", v])
 
@@ -380,7 +371,6 @@ class Black:
         sublime.set_timeout_async(lambda: tmp.unlink())
 
     def __call__(self, edit, extra=[]):
-
         # get command_line  + args
         content, encoding = self.get_content()
         cwd = self.get_good_working_dir()
@@ -400,8 +390,7 @@ class Black:
             self.view.set_status(STATUS_KEY, ALREADY_FORMATTED_MESSAGE_CACHE)
             return
 
-        # call black or balckd
-
+        # call black or blackd
         if (
             self.config["black_use_blackd"] and "--diff" not in extra
         ):  # no diff with server

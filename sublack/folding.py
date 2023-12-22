@@ -1,11 +1,13 @@
-import sublime
+import json
 import logging
+import os
+import sublime
+import subprocess
+
 from .consts import PACKAGE_NAME
+from .utils import get_env, popen
 
 LOG = logging.getLogger(PACKAGE_NAME)
-from .utils import popen
-import subprocess
-import json
 
 
 class FoldingError(Exception):
@@ -13,7 +15,7 @@ class FoldingError(Exception):
 
 
 def get_folded_lines(view):
-    """ return line number corresponding to each folded statement.
+    """return line number corresponding to each folded statement.
     Turned to 1-based to fit ast numbers."""
     return [
         view.rowcol(f.begin())[0] + 1
@@ -22,7 +24,7 @@ def get_folded_lines(view):
 
 
 def get_region_to_refold(line, view):
-    """ return a Region to fit with "left arrow click" to fold"""
+    """return a Region to fit with "left arrow click" to fold"""
     sel = view.sel()
     start = view.text_point(line + 1, 0)
     sel.clear()
@@ -40,16 +42,18 @@ def get_refolds(view, to_folds):
     return [get_region_to_refold(line, view) for line in to_folds]
 
 
-def get_index_with_interpreter(view, body, encoding):
-    """ extract an index for each ast node using the specified interpreter"""
+def get_index_with_interpreter(view: sublime.View, body: str, encoding: str):
+    """extract an index for each ast node using the specified interpreter"""
     python = view.settings().get("python_interpreter")
+    python = os.path.expanduser(python)
+    python = sublime.expand_variables(
+        python, {**get_env(), **view.window().extract_variables()}
+    )
     cmd = """import ast;b={};print([
         getattr(node, "lineno", 0)
         for node in ast.walk(ast.parse(b.decode(encoding="{}")))
         if hasattr(node, "lineno")
-    ])""".format(
-        body, encoding
-    )
+    ])""".format(body, encoding)
     proc = popen([python, "-c", cmd], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     out, err = proc.communicate()
     if proc.returncode == 0:
@@ -59,7 +63,7 @@ def get_index_with_interpreter(view, body, encoding):
 
 
 def get_index_with_python33(body):
-    """ extract an index for each ast node using the sublime python version"""
+    """extract an index for each ast node using the sublime python version"""
     import ast
 
     try:
@@ -91,7 +95,7 @@ def get_ast_index(view, body, encoding):
 
 
 def get_new_lines(old, new, folded_lines):
-    """get new lines comparing index. minus one a the end to 
+    """get new lines comparing index. minus one a the end to
     fit turn back to 0-based sublime line numbers"""
     old_index = {}  # dict to not add a line twice
     for index, line in enumerate(old):

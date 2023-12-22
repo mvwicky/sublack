@@ -4,23 +4,25 @@ Sublack
 Order of imports should not be changed
 """
 import logging
-import sublime
 import os
+import sublime
+import sys
+
 from .sublack import (
     PACKAGE_NAME,
     SETTINGS_FILE_NAME,
-    get_settings,
+    BlackDiffCommand,  # noqa: F401
+    BlackdStartCommand,  # noqa: F401
+    BlackdStopCommand,  # noqa: F401
+    BlackEventListener,  # noqa: F401
+    BlackFileCommand,  # noqa: F401
+    BlackFormatAllCommand,  # noqa: F401
+    BlackToggleBlackOnSaveCommand,  # noqa: F401
+    Path,
     cache_path,
     clear_cache,
-    Path,
-    BlackFileCommand,
-    BlackDiffCommand,
-    BlackToggleBlackOnSaveCommand,
-    BlackEventListener,
-    BlackdStartCommand,
-    BlackdStopCommand,
-    BlackFormatAllCommand,
-)  # flake8: noqa
+    get_settings,
+)
 
 LOG = logging.getLogger(PACKAGE_NAME)
 
@@ -32,7 +34,7 @@ def plugin_loaded():
     # load config
     current_view = sublime.active_window().active_view()
     config = get_settings(current_view)
-    if config["black_log"] == None:
+    if config["black_log"] is None:
         config["black_log"] = "info"
     # Setup  logging
     if not LOG.handlers:
@@ -69,3 +71,12 @@ def plugin_loaded():
     sublime.load_settings(SETTINGS_FILE_NAME).add_on_change(
         "black_log", lambda: Path(__file__).touch()
     )
+
+
+def plugin_unloaded():
+    to_pop = []
+    for mod_name in sys.modules:
+        if mod_name.startswith("sublack.") and mod_name != __name__:
+            to_pop.append(mod_name)
+    for mod_name in to_pop:
+        del sys.modules[mod_name]

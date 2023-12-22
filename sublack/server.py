@@ -1,20 +1,19 @@
-import subprocess
-import sublime
-import requests
-import time
-import os
-import sys
-import tempfile
 import logging
+import sublime
+import tempfile
+import time
+
+import requests
+
+from .consts import PACKAGE_NAME
 from .utils import (
     cache_path,
+    check_blackd_on_http,
+    get_open_port,
+    get_python3_executable,
     kill_with_pid,
     popen,
-    get_open_port,
-    check_blackd_on_http,
-    get_python3_executable,
 )
-from .consts import PACKAGE_NAME
 
 LOG = logging.getLogger(PACKAGE_NAME)
 
@@ -37,7 +36,6 @@ class BlackdServer:
         self.watched = kwargs.get("watched", default_watched)
         self.checker_interval = kwargs.get("checker_interval", None)
         self.settings = kwargs.get("settings", None)
-
         self.platform = sublime.platform()
         LOG.debug("New blackdServer instance with params : %s", vars(self))
 
@@ -45,9 +43,8 @@ class BlackdServer:
         # check server running
         timeout = timeout if timeout else self.timeout
         sleep_time = sleep_time if sleep_time else self.sleep_time
-        started = time.time()
-        while time.time() - started < timeout:  # timeout 5 s
-
+        started = time.monotonic()
+        while time.monotonic() - started < timeout:  # timeout 5 s
             try:
                 requests.post("http://" + self.host + ":" + self.port)
             except requests.ConnectionError:
@@ -83,11 +80,10 @@ class BlackdServer:
             return pid
 
     def blackd_is_runnable(self):
-
         http_state = check_blackd_on_http(self.port)
         if http_state[0]:
-            msg = "Blackd already running en port {}".format(self.port)
-            LOG.warning(msg + " aborting..")
+            msg = "Blackd already running on port %s"
+            LOG.warning(msg + " aborting..", self.port)
         else:
             if http_state[1]:
                 LOG.debug("port checked, seems free")
@@ -123,7 +119,6 @@ class BlackdServer:
         return blackd
 
     def run(self):
-
         cmd = [self.blackd_cmd, "--bind-port", self.port]
 
         self.proc, running = self._run_blackd(cmd)
@@ -132,7 +127,6 @@ class BlackdServer:
             return False
 
         if self.deamon:
-
             self.write_cache(self.proc.pid)
 
             python_executable = get_python3_executable(self.settings)

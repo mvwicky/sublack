@@ -1,5 +1,17 @@
+import locale
+import logging
+import os
+import pathlib
 import re
+import signal
+import socket
 import sublime
+import subprocess
+
+import requests
+import toml
+import yaml
+
 from .consts import (
     CONFIG_OPTIONS,
     ENCODING_PATTERN,
@@ -9,17 +21,6 @@ from .consts import (
     SETTINGS_NS_PREFIX,
 )
 
-import pathlib
-import subprocess
-import signal
-import os
-import locale
-import socket
-import requests
-import logging
-import yaml
-import toml
-
 LOG = logging.getLogger("sublack")
 
 
@@ -27,21 +28,17 @@ class Path(type(pathlib.Path())):
     def write_text(
         self, content, mode="w", buffering=-1, encoding=None, errors=None, newline=None
     ):
-
         with self.open(
             mode="w", buffering=-1, encoding=None, errors=None, newline=None
         ) as file:
-
             return file.write(content)
 
     def read_text(
         self, mode="w", buffering=-1, encoding=None, errors=None, newline=None
     ):
-
         with self.open(
             mode="r", buffering=-1, encoding=None, errors=None, newline=None
         ) as file:
-
             return file.read()
 
 
@@ -52,7 +49,7 @@ def timed(fn):
         st = time.time()
         rev = fn(*args, **kwargs)
         end = time.time()
-        LOG.debug("durée {} {:.2f} ms".format(fn.__name__, (end - st) * 1000))
+        LOG.debug("duration {} {:.2f} ms".format(fn.__name__, (end - st) * 1000))
         return rev
 
     return to_time
@@ -177,10 +174,7 @@ def startup_info():
 
 def shell():
     """set shell to True on windows"""
-    if sublime.platform() == "windows":
-        return True
-    else:
-        False
+    return sublime.platform() == "windows"
 
 
 def kill_with_pid(pid: int):
@@ -216,17 +210,15 @@ def check_blackd_on_http(port, host="localhost"):
     except requests.ConnectionError:
         return False, True
     else:
-
         if resp.content == b"a = 1\n":
             return True, False
         else:
             return False, False
 
 
-def find_root_file(view, filename):
+def find_root_file(view: sublime.View, filename: str):
     """Only search in projects and folders since pyproject.toml/precommit, ... should be nowhere else"""
     window = view.window()
-
     filepath = window.extract_variables().get("file_path", None)
     if not filepath:
         return
@@ -250,7 +242,6 @@ def find_root_file(view, filename):
             break
         path = Path(parent) / filename
         if path.exists():
-
             LOG.debug("%s path %s", filename, path)
             return path
 
@@ -278,14 +269,11 @@ def find_pyproject(view):
     for folder in cur_fil.parents:
         if (folder / "pyproject.toml").is_file():
             return folder / "pyproject.toml"
-
-        if (folder / ".git").is_dir():
+        elif (folder / ".git").is_dir():
             return None
-
-        if (folder / ".hg").is_dir():
+        elif (folder / ".hg").is_dir():
             return None
-
-        if folder.resolve() in folders:
+        elif folder.resolve() in folders:
             return None
 
 
@@ -299,7 +287,7 @@ def read_pyproject_toml(pyproject: Path) -> dict:
     try:
         pyproject_toml = toml.load(str(pyproject))
         config = pyproject_toml.get("tool", {}).get("black", {})
-    except (toml.TomlDecodeError, OSError) as e:
+    except (toml.TomlDecodeError, OSError):
         LOG.error("Error reading configuration file: %s", pyproject)
         # pass
 
@@ -410,7 +398,6 @@ def find_python3_executable():
 
 
 def get_python3_executable(config=None):
-
     # First check for python3/python in path
     for version in ["python3", "python"]:
         if is_python3_executable(version):

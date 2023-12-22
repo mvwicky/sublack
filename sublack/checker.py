@@ -1,12 +1,10 @@
-import time
-import subprocess
-import platform
-import os
-import signal
-import re
 import argparse
 import logging
-
+import os
+import platform
+import signal
+import subprocess
+import time
 
 DEFAULT_INTERVAL = 5
 
@@ -22,7 +20,6 @@ LOG.addHandler(dh)
 
 class Checker:
     def __init__(self, watched: str, target: str, interval: int = DEFAULT_INTERVAL):
-
         self.watched = watched.encode()
         self.target = int(target)
         self.interval = interval
@@ -53,7 +50,6 @@ class Checker:
         target_found = False
 
         for task in tasklist[1:]:
-
             if task[0].strip(b'"') == self.watched:
                 watched_found = True
 
@@ -71,14 +67,12 @@ class Checker:
         return False
 
     def is_running_unix(self):
-
         tasklist = subprocess.check_output(["ps", "x"]).splitlines()
 
         watched_found = False
         target_found = False
 
         for task in tasklist:
-
             splitted = task.split(maxsplit=4)
 
             if (
@@ -116,7 +110,6 @@ class Checker:
             raise EnvironmentError("environnement {} is not supported", plat)
 
     def watch(self):
-
         while True:
             time.sleep(self.interval)
             if not self.is_running():
@@ -145,7 +138,6 @@ class Checker:
 
 
 if __name__ == "__main__":
-
     parser = argparse.ArgumentParser(description="checker")
     parser.add_argument("watched", type=str, help="Watched program's name")
     parser.add_argument("target", type=int, help="target's pid")
